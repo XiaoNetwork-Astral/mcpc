@@ -1,0 +1,40 @@
+name: Release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Check that the tag matches package.json
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          node -e "
+            const version = require('./package.json').version;
+            if (process.env.RELEASE_TAG !== 'v' + version || !/^\d+\.\d+\.\d+$/.test(version)) {
+              console.error('tag ' + process.env.RELEASE_TAG + ' does not match package.json version ' + version);
+              process.exit(1);
+            }
+          "
+      - run: npm run check
+      - run: npm test
+      - run: sha256sum installer.sh installer.ps1 > SHA256SUMS
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: >-
+          gh release create "$RELEASE_TAG" installer.sh installer.ps1 SHA256SUMS
+          --verify-tag --title "mcpc $RELEASE_TAG" --generate-notes
