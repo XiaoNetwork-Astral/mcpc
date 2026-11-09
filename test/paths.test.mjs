@@ -9,7 +9,6 @@ import {
   approvalsFile,
   cacheFile,
   configFiles,
-  daemonKey,
   endpointFor,
   findWorkspaceRoot,
   logsDir,
@@ -140,19 +139,6 @@ test('workspaceId is stable, 16 hex, and lowercases only on win32', () => {
   assert.equal(workspaceId(root, 'win32'), expectedWindows);
   assert.equal(workspaceId(root, 'linux'), expectedPosix);
   assert.notEqual(workspaceId(root, 'win32'), workspaceId(root, 'linux'));
-});
-
-test('daemonKey appends the MCPC_SESSION suffix', () => {
-  assert.equal(daemonKey('abcd1234'), 'abcd1234');
-  assert.equal(daemonKey('abcd1234', {}), 'abcd1234');
-  assert.equal(daemonKey('abcd1234', { MCPC_SESSION: '' }), 'abcd1234');
-
-  const suffix = createHash('sha256').update('session-1').digest('hex').slice(0, 8);
-  assert.equal(daemonKey('abcd1234', { MCPC_SESSION: 'session-1' }), `abcd1234-${suffix}`);
-  assert.notEqual(
-    daemonKey('abcd1234', { MCPC_SESSION: 'session-1' }),
-    daemonKey('abcd1234', { MCPC_SESSION: 'session-2' }),
-  );
 });
 
 test('project path helpers build the documented layout', () => {

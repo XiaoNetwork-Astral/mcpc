@@ -322,7 +322,7 @@ test('renderCatalog prints alwaysLoad definitions outside the budget', () => {
   assert.ok(text.endsWith('Use `mcpc search <terms>` to find the rest.\n'));
 });
 
-test('renderCatalog omits denied tools and flags ask tools', () => {
+test('renderCatalog flags annotations and ignores a removed permission option', () => {
   const servers = [
     {
       name: 's',
@@ -337,17 +337,14 @@ test('renderCatalog omits denied tools and flags ask tools', () => {
   ];
 
   const text = renderCatalog(servers, {
-    permission: (id) => {
-      if (id === 's/denied') return 'deny';
-      if (id === 's/asked') return 'ask';
-      return 'allow';
-    },
+    permission: () => 'deny',
   });
-  assert.match(text, /## s  connected  stdio  2 tools\n/);
+  assert.match(text, /## s  connected  stdio  3 tools\n/);
   assert.match(text, /- s\/allowed — fine \[read-only\]/);
-  assert.match(text, /- s\/asked — confirm \[destructive\] \[ask\]/);
-  assert.doesNotMatch(text, /denied/);
-  assert.doesNotMatch(text, /of 2 shown/);
+  assert.match(text, /- s\/asked — confirm \[destructive\]/);
+  assert.match(text, /- s\/denied — secret/);
+  assert.doesNotMatch(text, /\[ask\]/);
+  assert.doesNotMatch(text, /of 3 shown/);
   assert.ok(text.endsWith('\n'));
   assert.ok(!text.endsWith('\n\n'));
 });

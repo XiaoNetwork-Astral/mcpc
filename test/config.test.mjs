@@ -7,7 +7,6 @@ import { test } from 'node:test';
 import {
   approvalState,
   buildServerConfig,
-  evaluatePermission,
   expandString,
   loadConfig,
   readApprovals,
@@ -156,6 +155,7 @@ test('validateServer accepts valid stdio and remote configurations', () => {
     startupTimeout: 5000,
     alwaysLoad: true,
     disabled: false,
+    session: true,
     tools: { include: ['read_*'], exclude: ['write_*'] },
   });
   assert.deepEqual(allFields.errors, []);
@@ -229,12 +229,29 @@ test('validateServer checks field types', () => {
     [{ ...base, tools: { exclude: [1] } }, /"tools.exclude"/],
     [{ type: 'http', url: 'https://x', headers: [] }, /"headers"/],
     [{ type: 'http', url: 'https://x', headers: { A: 1 } }, /"headers"/],
-    [{ type: 'http', url: 'https://x', headersHelper: 1 }, /"headersHelper"/],
+    [{ ...base, session: 'yes' }, /"session"/],
   ];
   for (const [raw, pattern] of cases) {
     assert.ok(
       contains(validateServer('s', raw).errors, pattern),
       `expected ${pattern} for ${JSON.stringify(raw)}`,
+    );
+  }
+});
+
+test('validateServer accepts a boolean session and rejects non-booleans', () => {
+  for (const session of [true, false]) {
+    const result = validateServer('s', { command: 'npx', session });
+    assert.deepEqual(result.errors, []);
+    assert.deepEqual(result.warnings, []);
+  }
+  for (const session of ['yes', 1, null]) {
+    assert.ok(
+      contains(
+        validateServer('s', { command: 'npx', session }).errors,
+        /"session" must be a boolean/,
+      ),
+      `expected a session error for ${JSON.stringify(session)}`,
     );
   }
 });
@@ -276,6 +293,7 @@ test('validateServer checks oauth shape and https metadata URL', () => {
 test('validateServer emits warnings without rejecting the config', () => {
   const cases = [
     [{ command: 'npx', mystery: true }, /unknown field "mystery"/],
+    [{ command: 'npx', headersHelper: 'cmd' }, /unknown field "headersHelper"/],
     [{ command: ' npx ' }, /"command".*whitespace/],
     [{ type: 'http', url: ' https://x ' }, /"url".*whitespace/],
     [{ command: 'npx', args: [' --flag '] }, /"args\[0\]".*whitespace/],
@@ -437,12 +455,9 @@ test('loadConfig applies local > project > user without merging fields', (t) => 
   assert.equal(loaded.servers.get('shared').config.command, 'local');
   assert.equal('args' in loaded.servers.get('shared').config, false);
 
-  assert.deepEqual(loaded.permissions, {
-    allow: ['local-a/*', 'user-a/*'],
-    ask: ['local-ask/*', 'user-ask/*'],
-    deny: ['local-deny/*', 'user-deny/*'],
-  });
-  assert.ok(contains(loaded.warnings, /permissions in project scope/));
+  // A `permissions` key is ignored silently in every scope.
+  assert.equal('permissions' in loaded, false);
+  assert.deepEqual(loaded.warnings, []);
   assert.deepEqual(loaded.errors, []);
 
   for (const scope of ['local', 'project', 'user']) {
@@ -462,7 +477,6 @@ test('loadConfig treats missing files as empty scopes', (t) => {
 
   const loaded = loadConfig(files, { env: {}, root: directory });
   assert.equal(loaded.servers.size, 0);
-  assert.deepEqual(loaded.permissions, { allow: [], ask: [], deny: [] });
   assert.deepEqual(loaded.warnings, []);
   assert.deepEqual(loaded.errors, []);
   for (const scope of ['local', 'project', 'user']) {
@@ -640,49 +654,6 @@ test('approvals round-trip through the documented format', (t) => {
     approvalState({ servers: {} }, { name: 'approved-server', approvalFingerprint: 'fp-approved' }),
     'pending',
   );
-});
-
-test('evaluatePermission honors globs, precedence, and interaction metadata', () => {
-  const rules = {
-    allow: ['github/*'],
-    ask: ['github/delete*'],
-    deny: ['github/drop_*'],
-  };
-
-  assert.equal(evaluatePermission(rules, 'github/list'), 'allow');
-  assert.equal(evaluatePermission(rules, 'github/delete_all'), 'ask');
-  assert.equal(evaluatePermission(rules, 'github/drop_table'), 'deny');
-  assert.equal(evaluatePermission(rules, 'gitlab/list'), 'allow');
-
-  assert.equal(evaluatePermission({ allow: ['server'] }, 'server/anything'), 'allow');
-  assert.equal(evaluatePermission({ ask: ['server'] }, 'server/anything'), 'ask');
-  assert.equal(evaluatePermission({ deny: ['*'] }, 'any/tool'), 'deny');
-  assert.equal(evaluatePermission({ allow: ['server/*'] }, 'server/tool'), 'allow');
-  assert.equal(evaluatePermission({ deny: ['a/*'] }, 'a/b/c'), 'deny');
-
-  assert.equal(evaluatePermission({ deny: ['GitHub/*'] }, 'github/x'), 'allow');
-  assert.equal(evaluatePermission({ deny: ['GitHub/*'] }, 'GitHub/x'), 'deny');
-
-  assert.equal(evaluatePermission({ deny: ['a/b*'] }, 'a/bc'), 'deny');
-  assert.equal(evaluatePermission({ deny: ['a/b*'] }, 'a/b/c'), 'allow');
-
-  assert.equal(
-    evaluatePermission({ allow: ['*'] }, 'x/y', { 'anthropic/requiresUserInteraction': true }),
-    'ask',
-  );
-  assert.equal(
-    evaluatePermission({ allow: ['*'] }, 'x/y', { requiresUserInteraction: true }),
-    'ask',
-  );
-  assert.equal(
-    evaluatePermission({ allow: ['*'] }, 'x/y', { requiresUserInteraction: false }),
-    'allow',
-  );
-  assert.equal(
-    evaluatePermission({ deny: ['x/*'], allow: ['*'] }, 'x/y', { requiresUserInteraction: true }),
-    'deny',
-  );
-  assert.equal(evaluatePermission(undefined, 'x/y'), 'allow');
 });
 
 test('redact replaces secrets longest first and leaves other values alone', () => {

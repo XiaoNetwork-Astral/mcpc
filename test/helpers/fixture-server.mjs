@@ -54,13 +54,8 @@ export const BASE_TOOLS = [
     inputSchema: object({ ms: { type: 'integer' } }, ['ms']),
   },
   {
-    name: 'ask',
-    description: 'Ask the user for a name through elicitation.',
-    inputSchema: object({}),
-  },
-  {
-    name: 'sample',
-    description: 'Ask the client model for a completion.',
+    name: 'counter',
+    description: 'Increment a per-process counter and return it (shows whether state survives).',
     inputSchema: object({}),
   },
   {
@@ -88,6 +83,7 @@ export const BASE_TOOLS = [
  */
 export function createFixtureServer({ name = 'fixture' } = {}) {
   const extra = [];
+  let count = 0;
   const server = new Server(
     { name, version: '1.0.0' },
     {
@@ -140,21 +136,9 @@ export function createFixtureServer({ name = 'fixture' } = {}) {
         }
         return { content: [{ type: 'text', text: `slept ${args.ms} ms` }] };
       }
-      case 'ask': {
-        const answer = await ctx.mcpReq.elicitInput({
-          mode: 'form',
-          message: 'What is your name?',
-          requestedSchema: object({ name: { type: 'string' } }, ['name']),
-        });
-        return { content: [{ type: 'text', text: `elicitation: ${JSON.stringify(answer)}` }] };
-      }
-      case 'sample': {
-        const reply = await ctx.mcpReq.requestSampling({
-          messages: [{ role: 'user', content: { type: 'text', text: 'Say hi' } }],
-          maxTokens: 50,
-        });
-        return { content: [{ type: 'text', text: `sampling: ${JSON.stringify(reply)}` }] };
-      }
+      case 'counter':
+        count += 1;
+        return { content: [{ type: 'text', text: `count ${count}` }] };
       case 'delete_everything':
         return { content: [{ type: 'text', text: 'deleted nothing' }] };
       case 'add_tool':
@@ -169,6 +153,8 @@ export function createFixtureServer({ name = 'fixture' } = {}) {
         setTimeout(() => process.exit(3), 50);
         return { content: [{ type: 'text', text: 'crashing' }] };
       default:
+        if (extra.some((item) => item.name === tool))
+          return { content: [{ type: 'text', text: `called ${tool}` }] };
         return { content: [{ type: 'text', text: `unknown tool ${tool}` }], isError: true };
     }
   });

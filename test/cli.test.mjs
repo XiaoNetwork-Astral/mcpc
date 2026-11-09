@@ -10,27 +10,14 @@ const EXPECTED = [
   ['add-json', 'Servers'],
   ['remove', 'Servers'],
   ['approve', 'Servers'],
-  ['reject', 'Servers'],
-  ['login', 'Servers'],
-  ['logout', 'Servers'],
   ['tools', 'Tools'],
   ['search', 'Tools'],
   ['describe', 'Tools'],
   ['call', 'Tools'],
-  ['wait', 'Tools'],
-  ['cancel', 'Tools'],
-  ['result', 'Tools'],
-  ['requests', 'Requests'],
-  ['answer', 'Requests'],
-  ['resources', 'Resources and prompts'],
-  ['read', 'Resources and prompts'],
-  ['prompts', 'Resources and prompts'],
-  ['prompt', 'Resources and prompts'],
-  ['status', 'Daemon'],
-  ['logs', 'Daemon'],
-  ['restart', 'Daemon'],
-  ['stop', 'Daemon'],
-  ['daemon', 'Daemon'],
+  ['resources', 'Resources'],
+  ['read', 'Resources'],
+  ['session', 'Sessions'],
+  ['logs', 'Sessions'],
 ];
 
 const DOCUMENTED = [
@@ -45,50 +32,16 @@ const DOCUMENTED = [
   ['remove', 'fs', '--scope', 'user'],
   ['approve'],
   ['approve', 'a', 'b', '--all'],
-  ['reject', 'a'],
-  ['login', 'fs'],
-  [
-    'login',
-    'fs',
-    '--no-browser',
-    '--port',
-    '3000',
-    '--manual',
-    '--callback-url',
-    'http://127.0.0.1/cb',
-  ],
-  ['logout', 'fs'],
   ['tools'],
-  ['tools', 'a', 'b', '--cached', '--refresh', '--budget', '1000'],
+  ['tools', 'a', 'b', '--refresh', '--budget', '1000'],
   ['search', 'foo', 'bar', '--limit', '10', '--offset', '2', '--full'],
   ['describe', 'a/b', '--full'],
-  [
-    'call',
-    'a/b',
-    '{"x":1}',
-    '--args-file',
-    'args.json',
-    '--timeout',
-    '5000',
-    '--wait-ms',
-    '100',
-    '--background',
-  ],
-  ['wait', 'c1', 'c2', '--timeout', '30'],
-  ['cancel', 'c1'],
-  ['result', 'c1'],
-  ['requests'],
-  ['answer', 'r-1', '{"action":"accept"}', '--file', 'answer.json'],
+  ['call', 'a/b', '{"x":1}', '--args-file', 'args.json', '--timeout', '5000'],
   ['resources', 'a', 'b'],
   ['read', 'fs', 'file:///tmp/x'],
-  ['prompts', 'fs'],
-  ['prompt', 'fs/p', 'x=1', 'y=2'],
-  ['status'],
+  ['session', 'fs', '--idle', '15'],
+  ['logs'],
   ['logs', 'fs', '--tail', '100'],
-  ['restart'],
-  ['restart', 'a'],
-  ['stop'],
-  ['daemon', '--key', 'k', '--root', '/work'],
 ];
 
 function usageError(callback) {
@@ -119,10 +72,15 @@ test('command table lists every documented command in group order', () => {
     assert.ok(command.usage.length > 0);
     assert.ok(Array.isArray(command.positionals));
     assert.ok(Array.isArray(command.options));
+    for (const positional of command.positionals) {
+      assert.equal(typeof positional.description, 'string', `${name} ${positional.name}`);
+      assert.ok(positional.description.length > 0, `${name} ${positional.name}`);
+      assert.ok(!positional.description.includes('\n'), `${name} ${positional.name}`);
+    }
   }
   assert.deepEqual(
     COMMANDS.filter((command) => command.hidden).map((command) => command.name),
-    ['daemon'],
+    [],
   );
 
   const add = COMMANDS.find((command) => command.name === 'add');
@@ -139,8 +97,39 @@ test('command table lists every documented command in group order', () => {
   assert.deepEqual(transport.choices, ['stdio', 'http', 'sse', 'ws']);
   assert.equal(transport.default, 'stdio');
 
-  const daemon = COMMANDS.find((command) => command.name === 'daemon');
-  assert.ok(daemon.options.every((option) => option.required));
+  const session = COMMANDS.find((command) => command.name === 'session');
+  assert.deepEqual(
+    session.positionals.map((positional) => positional.name),
+    ['server'],
+  );
+  const idle = session.options.find((option) => option.long === '--idle');
+  assert.equal(idle.min, 1);
+  assert.equal(idle.max, 1440);
+  assert.equal(idle.default, 30);
+
+  const removedCommands = new Set([
+    'reject',
+    'login',
+    'logout',
+    'wait',
+    'cancel',
+    'result',
+    'requests',
+    'answer',
+    'prompts',
+    'prompt',
+    'status',
+    'restart',
+    'stop',
+    'daemon',
+  ]);
+  const removedOptions = new Set(['--cached', '--wait-ms', '--background']);
+  for (const command of COMMANDS) {
+    assert.ok(!removedCommands.has(command.name), `${command.name} is removed`);
+    for (const option of command.options) {
+      assert.ok(!removedOptions.has(option.long), `${command.name} ${option.long} is removed`);
+    }
+  }
 });
 
 test('every command parses its documented forms', () => {
@@ -164,17 +153,14 @@ test('commands return their declared positionals', () => {
     target: ['npx'],
   });
   assert.deepEqual(parse(['approve']).positionals, { server: [] });
-  assert.deepEqual(parse(['reject', 'a', 'b']).positionals, { server: ['a', 'b'] });
   assert.deepEqual(parse(['tools', 'a', 'b']).positionals, { server: ['a', 'b'] });
   assert.deepEqual(parse(['search', 'foo', 'bar']).positionals, { query: ['foo', 'bar'] });
   assert.deepEqual(parse(['describe', 'a/b', 'c/d']).positionals, { ref: ['a/b', 'c/d'] });
   assert.deepEqual(parse(['call', 'a/b']).positionals, { ref: 'a/b', json: undefined });
   assert.deepEqual(parse(['call', 'a/b', '{}']).positionals, { ref: 'a/b', json: '{}' });
-  assert.deepEqual(parse(['wait']).positionals, { callId: [] });
-  assert.deepEqual(parse(['wait', 'c1', 'c2']).positionals, { callId: ['c1', 'c2'] });
   assert.deepEqual(parse(['logs']).positionals, { server: undefined });
   assert.deepEqual(parse(['logs', 'fs']).positionals, { server: 'fs' });
-  assert.deepEqual(parse(['prompt', 'fs/p']).positionals, { ref: 'fs/p', args: [] });
+  assert.deepEqual(parse(['session', 'fs']).positionals, { server: 'fs' });
   assert.deepEqual(parse(['read', 'fs', 'file:///x']).positionals, {
     server: 'fs',
     uri: 'file:///x',
@@ -199,10 +185,11 @@ test('defaults are applied to command and global options', () => {
   assert.equal(search.options.offset, 0);
   assert.equal(search.options.full, false);
 
-  assert.equal(parse(['wait']).options.timeout, 600);
+  assert.equal(parse(['session', 'fs']).options.idle, 30);
   assert.equal(parse(['logs']).options.tail, 50);
   assert.equal(parse(['list']).options.scope, undefined);
   assert.equal(parse(['add-json', 'fs', '{}']).options.scope, undefined);
+  assert.equal(parse(['call', 'a/b']).options.timeout, undefined);
 });
 
 test('repeatable options accumulate values in order', () => {
@@ -262,13 +249,12 @@ test('long equals form, short forms and camelCase keys work', () => {
   assert.deepEqual(short.options.header, ['A: b']);
   assert.equal(short.options.cwd, '/work');
 
-  const login = parse(['login', 'fs', '--no-browser', '--callback-url', 'http://x/cb']);
-  assert.equal(login.options.noBrowser, true);
-  assert.equal(login.options.callbackUrl, 'http://x/cb');
-
-  const call = parse(['call', 'a/b', '--args-file', 'a.json', '--wait-ms', '10']);
+  const call = parse(['call', 'a/b', '--args-file', 'a.json', '--timeout', '5000']);
   assert.equal(call.options.argsFile, 'a.json');
-  assert.equal(call.options.waitMs, 10);
+  assert.equal(call.options.timeout, 5000);
+
+  const session = parse(['session', 'fs', '--idle=45']);
+  assert.equal(session.options.idle, 45);
 });
 
 test('global options are accepted before and after the command', () => {
@@ -302,7 +288,7 @@ test('-- sends the tail to rest for add and to positionals elsewhere', () => {
 
 test('strict integers accept negatives only where the range allows', () => {
   assert.equal(parse(['tools', '--budget', '0']).options.budget, 0);
-  assert.equal(parse(['call', 'a/b', '--wait-ms', '0']).options.waitMs, 0);
+  assert.equal(parse(['session', 'fs', '--idle', '1']).options.idle, 1);
   const error = usageError(() => parse(['tools', '--budget', '-1']));
   assert.match(error.message, /at least 0/);
 });
@@ -330,6 +316,9 @@ test('unknown commands and options suggest close names', () => {
 
   const short = usageError(() => parse(['add', 'fs', '-z']));
   assert.match(short.message, /-s/);
+
+  const removed = usageError(() => parse(['tools', '--cached']));
+  assert.match(removed.message, /Unknown option/);
 });
 
 test('missing option values are rejected', () => {
@@ -372,16 +361,16 @@ test('bad integers and out-of-range integers are rejected', () => {
   );
   assert.match(usageError(() => parse(['logs', '--tail', '10001'])).message, /between 1 and 10000/);
   assert.match(
-    usageError(() => parse(['wait', '--timeout', '3601'])).message,
-    /between 1 and 3600/,
+    usageError(() => parse(['session', 'fs', '--idle', '0'])).message,
+    /between 1 and 1440/,
   );
   assert.match(
-    usageError(() => parse(['login', 'fs', '--port', '0'])).message,
-    /between 1 and 65535/,
+    usageError(() => parse(['session', 'fs', '--idle', '1441'])).message,
+    /between 1 and 1440/,
   );
   assert.match(
-    usageError(() => parse(['login', 'fs', '--port', '65536'])).message,
-    /between 1 and 65535/,
+    usageError(() => parse(['call', 'a/b', '--timeout', '999'])).message,
+    /at least 1000/,
   );
 });
 
@@ -392,16 +381,9 @@ test('missing required positionals and options are rejected', () => {
   assert.match(server.message, /server/);
 
   assert.match(usageError(() => parse(['search'])).message, /query/);
-  assert.match(usageError(() => parse(['reject'])).message, /server/);
   assert.match(usageError(() => parse(['read', 'fs'])).message, /uri/);
-
-  const key = usageError(() => parse(['daemon']));
-  assert.equal(key.command, 'daemon');
-  assert.match(key.message, /Missing required option/);
-  assert.match(key.message, /--key/);
-
-  const root = usageError(() => parse(['daemon', '--key', 'k']));
-  assert.match(root.message, /--root/);
+  assert.match(usageError(() => parse(['session'])).message, /server/);
+  assert.match(usageError(() => parse(['call'])).message, /ref/);
 });
 
 test('too many positionals are rejected', () => {
@@ -413,7 +395,8 @@ test('too many positionals are rejected', () => {
   const read = usageError(() => parse(['read', 'fs', 'file:///x', 'extra']));
   assert.match(read.message, /Too many arguments/);
 
-  assert.match(usageError(() => parse(['cancel', 'a', 'b'])).message, /Too many arguments/);
+  assert.match(usageError(() => parse(['logs', 'a', 'b'])).message, /Too many arguments/);
+  assert.match(usageError(() => parse(['session', 'a', 'b'])).message, /Too many arguments/);
 });
 
 test('boolean options do not accept a value', () => {
@@ -431,7 +414,7 @@ test('help and version actions', () => {
   assert.deepEqual(parse(['help']), { action: 'help', command: null });
   assert.deepEqual(parse(['help', 'add']), { action: 'help', command: 'add' });
   assert.deepEqual(parse(['--json', 'help', 'add']), { action: 'help', command: 'add' });
-  assert.deepEqual(parse(['daemon', '--help']), { action: 'help', command: 'daemon' });
+  assert.deepEqual(parse(['session', '--help']), { action: 'help', command: 'session' });
   assert.deepEqual(parse(['bogus', '--help']), { action: 'help', command: null });
 
   assert.deepEqual(parse(['--version']), { action: 'version' });
@@ -453,7 +436,7 @@ test('root help lists every non-hidden command at a stable alignment', () => {
     'mcpc — A host-neutral MCP client for agent harnesses without native MCP.',
   );
   assert.ok(lines.includes('Usage: mcpc <command> [options]'));
-  for (const group of ['Servers:', 'Tools:', 'Requests:', 'Resources and prompts:', 'Daemon:']) {
+  for (const group of ['Servers:', 'Tools:', 'Resources:', 'Sessions:']) {
     assert.ok(lines.includes(group), group);
   }
   for (const command of COMMANDS.filter((entry) => !entry.hidden)) {
@@ -462,7 +445,7 @@ test('root help lists every non-hidden command at a stable alignment', () => {
       `${command.name} is listed`,
     );
   }
-  assert.ok(!lines.some((line) => /^ {2}daemon\s/.test(line)));
+  assert.ok(!help.includes('daemon'));
   assert.ok(help.includes('Global options:'));
   for (const option of ['--cwd', '--json', '--help', '--version']) {
     assert.ok(help.includes(option));
@@ -505,13 +488,49 @@ test('command help shows usage, summary, arguments, options and globals', () => 
     assert.ok(help.includes(option));
   }
 
-  const daemon = commandHelp('daemon');
-  assert.ok(daemon.includes('--key'));
-  assert.ok(daemon.includes('--root'));
-  assert.ok(daemon.includes('(required)'));
+  const session = commandHelp('session');
+  assert.ok(session.includes('Keep one server connected for stateful use (run in the background)'));
+  assert.ok(session.includes('--idle'));
+  assert.ok(session.includes('(default: 30)'));
 
   assert.ok(!commandHelp('list').includes('Arguments:'));
   assert.ok(commandHelp('list').includes('--scope'));
+});
+
+test('command help prints positional descriptions aligned with options', () => {
+  const help = commandHelp('add');
+  const lines = help.split('\n');
+  const start = lines.indexOf('Arguments:');
+  assert.ok(start >= 0);
+  const nameLine = lines[start + 1];
+  const targetLine = lines[start + 2];
+  assert.match(nameLine, /^ {2}<name> +Server name$/);
+  assert.match(targetLine, /^ {2}\[target\.\.\.\] +Command or URL$/);
+  assert.equal(nameLine.indexOf('Server name'), targetLine.indexOf('Command or URL'));
+
+  const call = commandHelp('call');
+  assert.match(call, /<ref> +Tool as server\/tool/);
+  assert.match(call, /\[json\] +Tool arguments as JSON \(- reads stdin\)/);
+  assert.match(commandHelp('add-json'), /<json> +Server definition as JSON/);
+  assert.match(
+    commandHelp('search'),
+    /<query\.\.\.> +Search terms; select:a\/b,c\/d picks exact tools/,
+  );
+  assert.match(commandHelp('read'), /<uri> +Resource URI/);
+});
+
+test('every positional description appears in its command help', () => {
+  for (const command of COMMANDS) {
+    if (command.positionals.length === 0) continue;
+    const help = commandHelp(command.name, { columns: 400 });
+    assert.ok(help.includes('Arguments:'), command.name);
+    for (const positional of command.positionals) {
+      assert.ok(
+        help.includes(positional.description),
+        `${command.name} help includes ${positional.description}`,
+      );
+    }
+  }
 });
 
 test('command help wraps within the requested columns', () => {
