@@ -1,19 +1,29 @@
 {
   "name": "mcpc",
   "version": "0.1.0",
-  "description": "A host-neutral MCP client for agent harnesses without native MCP: persistent server sessions, progressive tool discovery, and server-to-client requests through one CLI and a skill.",
+  "description": "An MCP client CLI and agent skill for harnesses without native MCP support: progressive tool discovery, schema-checked calls, and sessions for stateful servers.",
   "private": true,
   "license": "MIT",
   "author": "BlueFunny & Claude",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/XiaoNetwork-Astral/mcpc.git"
+  },
+  "homepage": "https://github.com/XiaoNetwork-Astral/mcpc",
+  "bugs": {
+    "url": "https://github.com/XiaoNetwork-Astral/mcpc/issues"
+  },
   "type": "module",
   "bin": {
     "mcpc": "bin/mcpc.mjs"
   },
   "files": [
     "bin",
+    "installer.ps1",
+    "installer.sh",
     "lib",
-    "skill",
-    "scripts"
+    "scripts",
+    "skill"
   ],
   "engines": {
     "node": ">=24.9"

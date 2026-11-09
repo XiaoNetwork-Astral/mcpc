@@ -18,7 +18,7 @@ const EXPECTED = [
   ['read', 'Resources'],
   ['session', 'Sessions'],
   ['logs', 'Sessions'],
-  ['install-skill', 'Setup'],
+  ['update', 'Setup'],
 ];
 
 const DOCUMENTED = [
@@ -43,8 +43,7 @@ const DOCUMENTED = [
   ['session', 'fs', '--idle', '15'],
   ['logs'],
   ['logs', 'fs', '--tail', '100'],
-  ['install-skill'],
-  ['install-skill', '--host', 'claude', '--host', 'codex', '--dir', 'skills'],
+  ['update'],
 ];
 
 function usageError(callback) {
