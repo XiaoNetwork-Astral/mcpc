@@ -261,3 +261,27 @@ test('WebSocket with configured headers', async (t) => {
   assert.deepEqual([result.code, result.out, result.err], [0, 'over ws', '']);
   assert.ok(server.seen.some((headers) => headers['x-test'] === 'ws'));
 });
+
+test('install-skill copies the skill, replaces its own copy and keeps foreign ones', async (t) => {
+  const { root, run } = sandbox(t);
+  const first = await run('install-skill', '--dir', 'skills');
+  assert.equal(first.code, 0, first.err);
+  const installed = path.join(root, 'skills', 'mcp-client');
+  assert.ok(first.out.includes(installed));
+  assert.match(fs.readFileSync(path.join(installed, 'SKILL.md'), 'utf8'), /^name: mcp-client$/m);
+  assert.ok(fs.existsSync(path.join(installed, 'references', 'configuration.md')));
+
+  fs.writeFileSync(path.join(installed, 'stale.txt'), 'old');
+  const again = await run('install-skill', '--dir', 'skills', '--json');
+  assert.equal(again.code, 0, again.err);
+  assert.deepEqual(JSON.parse(again.out).installed, [installed]);
+  assert.ok(!fs.existsSync(path.join(installed, 'stale.txt')));
+
+  const foreign = path.join(root, 'other', 'mcp-client');
+  fs.mkdirSync(foreign, { recursive: true });
+  fs.writeFileSync(path.join(foreign, 'SKILL.md'), '---\nname: something-else\n---\n');
+  const conflict = await run('install-skill', '--dir', 'other');
+  assert.equal(conflict.code, 1);
+  assert.match(conflict.err, /is not the mcp-client skill/);
+  assert.match(fs.readFileSync(path.join(foreign, 'SKILL.md'), 'utf8'), /something-else/);
+});

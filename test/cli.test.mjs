@@ -18,6 +18,7 @@ const EXPECTED = [
   ['read', 'Resources'],
   ['session', 'Sessions'],
   ['logs', 'Sessions'],
+  ['install-skill', 'Setup'],
 ];
 
 const DOCUMENTED = [
@@ -42,6 +43,8 @@ const DOCUMENTED = [
   ['session', 'fs', '--idle', '15'],
   ['logs'],
   ['logs', 'fs', '--tail', '100'],
+  ['install-skill'],
+  ['install-skill', '--host', 'claude', '--host', 'codex', '--dir', 'skills'],
 ];
 
 function usageError(callback) {
@@ -489,7 +492,9 @@ test('command help shows usage, summary, arguments, options and globals', () => 
   }
 
   const session = commandHelp('session');
-  assert.ok(session.includes('Keep one server connected for stateful use (run in the background)'));
+  assert.ok(
+    session.includes('Keep one server connected for stateful use (run it in the background).'),
+  );
   assert.ok(session.includes('--idle'));
   assert.ok(session.includes('(default: 30)'));
 
