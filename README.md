@@ -2,7 +2,7 @@
 
 English | [中文](README.zh.md)
 
-`mcpc` lets a host agent that can only run shell commands (such as Codex, a custom agent loop, or any harness without built-in MCP support) use [Model Context Protocol](https://modelcontextprotocol.io) servers. It ships with an agent skill that teaches the host to find tools through a compact catalog and search, read a tool's schema only when it needs it, and call it from the shell
+`mcpc` lets a host agent that can only run shell commands (such as a custom agent loop, or any harness without built-in MCP support) use [Model Context Protocol](https://modelcontextprotocol.io) servers. It ships with an agent skill that teaches the host to find tools through a compact catalog and search, read a tool's schema only when it needs it, and call it from the shell
 
 ## Early development
 

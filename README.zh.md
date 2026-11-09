@@ -2,7 +2,7 @@
 
 [English](README.md) | 中文
 
-`mcpc` 让只能执行 shell 命令的宿主 Agent（如 Codex、自建的 Agent 循环，或任何没有内置 MCP 支持的 harness）也能使用 [Model Context Protocol](https://modelcontextprotocol.io) 服务器。项目自带一个 Skill，教宿主先通过精简目录和搜索找到工具，需要时再读取工具的参数结构，然后在命令行中调用
+`mcpc` 让只能执行 shell 命令的宿主 Agent（如自建的 Agent 循环，或任何没有内置 MCP 支持的 harness）也能使用 [Model Context Protocol](https://modelcontextprotocol.io) 服务器。项目自带一个 Skill，教宿主先通过精简目录和搜索找到工具，需要时再读取工具的参数结构，然后在命令行中调用
 
 ## 早期开发
 
