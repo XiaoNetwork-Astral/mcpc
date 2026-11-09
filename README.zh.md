@@ -8,41 +8,51 @@
 
 `mcpc` 当前版本为 0.1.0，尚未正式发布，命令和配置仍可能变化，详见[更新日志](CHANGELOG.md)。远程服务器暂不支持 OAuth 登录，可以改用环境变量把令牌放进请求头
 
-安装需要 **Node.js 24.9+**、**npm** 和 **Git**。工作区不要求是 Git 仓库：Git 只用于确定工作区根目录（优先取最近的含 `.mcp.json` 的目录，其次取仓库根目录，否则取工作目录）
+安装程序需要 **Node.js 24.9+**、**npm** 和 **Git**。工作区不要求是 Git 仓库：Git 只用于确定工作区根目录（优先取最近的含 `.mcp.json` 的目录，其次取仓库根目录，否则取工作目录）
 
 ## 安装
 
 运行下列命令即可安装 `mcpc`，并把 Skill 装到找到的所有受支持的 harness 中（Claude Code：`~/.claude/skills`，Codex：`~/.agents/skills`）：
 
-```bash
-git clone <REPOSITORY_URL> mcpc
-cd mcpc
-npm ci --omit=dev
-npm install -g .
-mcpc install-skill
-```
-
-如需手动指定位置，可使用 `mcpc install-skill --host claude|codex` 或 `mcpc install-skill --dir <SKILLS_DIR>`（均可重复）。重复运行会替换已安装的副本；如果同名的 `mcp-client` 目录里是别的 Skill，则不会改动
-
-## 卸载
-
-先移除命令，再从安装过的 harness 中删除 Skill：
-
 **Linux / macOS：**
 
 ```bash
-npm uninstall -g mcpc
-rm -rf ~/.claude/skills/mcp-client ~/.agents/skills/mcp-client
+curl -fsSL https://github.com/XiaoNetwork-Astral/mcpc/releases/latest/download/installer.sh | bash
 ```
 
 **Windows (PowerShell)：**
 
 ```powershell
-npm uninstall -g mcpc
-Remove-Item -Recurse -Force "$HOME\.claude\skills\mcp-client", "$HOME\.agents\skills\mcp-client" -ErrorAction SilentlyContinue
+irm https://github.com/XiaoNetwork-Astral/mcpc/releases/latest/download/installer.ps1 | iex
 ```
 
-配置、缓存、日志和保存的结果位于 `~/.mcpc`（或 `MCPC_HOME`），如需彻底清除，请一并删除该目录
+安装程序会把最新版本 clone 到 `~/.mcpc/app`，并把 `mcpc` 命令链接到这里。再次运行会升级这份检出，并重新复制 Skill。如果只想装到某一个 harness，或者装到安装程序不认识的 harness，可以指定 `claude`、`codex` 或 `other <SKILLS_DIR>`（需要绝对路径），例如 `curl -fsSL …/installer.sh | bash -s -- install other ~/my-agent/skills`，Windows 上则是 `& ([scriptblock]::Create((irm …/installer.ps1))) install other C:\my-agent\skills`
+
+## 更新
+
+```bash
+mcpc update
+```
+
+有新版本时，`mcpc update` 会把检出更新到最新版本，然后重新安装依赖，并刷新所有装过的 harness 里的 Skill
+
+## 卸载
+
+运行下列命令即可从所有装过的 harness 中删除 Skill，并移除 `mcpc` 命令和 `~/.mcpc/app`：
+
+**Linux / macOS：**
+
+```bash
+curl -fsSL https://github.com/XiaoNetwork-Astral/mcpc/releases/latest/download/installer.sh | bash -s -- uninstall
+```
+
+**Windows (PowerShell)：**
+
+```powershell
+& ([scriptblock]::Create((irm https://github.com/XiaoNetwork-Astral/mcpc/releases/latest/download/installer.ps1))) uninstall
+```
+
+卸载不依赖检出目录，所以安装损坏时也能用它清理干净。指定 harness（`uninstall claude`、`uninstall other <SKILLS_DIR>`）时只删除那一处的 Skill。配置、缓存、日志和保存的结果位于 `~/.mcpc`（或 `MCPC_HOME`），如需彻底清除，请一并删除该目录
 
 ## 使用方法
 
@@ -121,13 +131,17 @@ mcpc logs files                             # 查看服务器的 stderr 和连�
 ## 开发
 
 ```bash
+git clone https://github.com/XiaoNetwork-Astral/mcpc.git
+cd mcpc
 npm ci                 # 安装依赖，包括测试用假服务器所需的服务端 SDK
 npm test               # 单元测试和端到端测试（node:test，假服务器在进程内运行）
 npm run check          # 检查所有模块的语法
 npm run format:check   # Prettier 格式检查；npm run format 直接改写
 ```
 
-端到端测试使用 `test/helpers/` 中的假服务器，在 `127.0.0.1` 上覆盖 stdio、会话、Streamable HTTP、SSE 和 WebSocket
+端到端测试使用 `test/helpers/` 中的假服务器，在 `127.0.0.1` 上覆盖 stdio、会话、Streamable HTTP、SSE 和 WebSocket。安装测试会在临时的主目录里，用本地发布仓库和模拟的 npm 运行 `installer.sh`（Windows 上还有 `installer.ps1`）。在 clone 下来的仓库里直接运行 `./installer.sh` 或 `.\installer.ps1`，安装的就是这份 clone，而不是 `~/.mcpc/app`
+
+推送与 `package.json` 版本一致的 `v<major>.<minor>.<patch>` 标签，会发布一个附带两个安装脚本的版本
 
 ## 许可证
 

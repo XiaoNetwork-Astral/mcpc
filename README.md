@@ -8,41 +8,51 @@ English | [中文](README.zh.md)
 
 `mcpc` is at version 0.1.0 and has not been published yet; commands and configuration may still change, see the [changelog](CHANGELOG.md). OAuth login for remote servers is not supported yet: pass a token in a header through an environment variable instead
 
-Installing requires **Node.js 24.9+**, **npm**, and **Git**. A workspace does not need to be a Git repository: Git only helps find the workspace root (the nearest directory with `.mcp.json`, otherwise the repository root, otherwise the working directory)
+The installer requires **Node.js 24.9+**, **npm**, and **Git**. A workspace does not need to be a Git repository: Git only helps find the workspace root (the nearest directory with `.mcp.json`, otherwise the repository root, otherwise the working directory)
 
 ## Install
 
-Run the following commands to install `mcpc` and add its skill to every supported harness it finds (Claude Code: `~/.claude/skills`, Codex: `~/.agents/skills`):
-
-```bash
-git clone <REPOSITORY_URL> mcpc
-cd mcpc
-npm ci --omit=dev
-npm install -g .
-mcpc install-skill
-```
-
-To choose the targets yourself, use `mcpc install-skill --host claude|codex` or `mcpc install-skill --dir <SKILLS_DIR>` (both repeatable). Running it again replaces the installed copy; a directory named `mcp-client` that holds a different skill is left alone
-
-## Uninstall
-
-Remove the command, then delete the skill from each harness it was installed into:
+Run the following command to install `mcpc` and add its skill to every supported harness it finds (Claude Code: `~/.claude/skills`, Codex: `~/.agents/skills`):
 
 **Linux / macOS:**
 
 ```bash
-npm uninstall -g mcpc
-rm -rf ~/.claude/skills/mcp-client ~/.agents/skills/mcp-client
+curl -fsSL https://github.com/XiaoNetwork-Astral/mcpc/releases/latest/download/installer.sh | bash
 ```
 
 **Windows (PowerShell):**
 
 ```powershell
-npm uninstall -g mcpc
-Remove-Item -Recurse -Force "$HOME\.claude\skills\mcp-client", "$HOME\.agents\skills\mcp-client" -ErrorAction SilentlyContinue
+irm https://github.com/XiaoNetwork-Astral/mcpc/releases/latest/download/installer.ps1 | iex
 ```
 
-Configuration, caches, logs, and saved results stay in `~/.mcpc` (or `MCPC_HOME`); delete that directory as well to remove everything
+The installer clones the latest release into `~/.mcpc/app` and links the `mcpc` command to it. Running it again upgrades that checkout and copies the skill again. To add the skill to one harness only, or to a harness it does not know, name it: `claude`, `codex`, or `other <SKILLS_DIR>` with an absolute path, for example `curl -fsSL …/installer.sh | bash -s -- install other ~/my-agent/skills`, or on Windows `& ([scriptblock]::Create((irm …/installer.ps1))) install other C:\my-agent\skills`
+
+## Update
+
+```bash
+mcpc update
+```
+
+`mcpc update` moves the checkout to the latest release when there is a newer one, then reinstalls its dependencies and refreshes the skill in every harness it was installed into
+
+## Uninstall
+
+Run the following command to remove the skill from every harness it was installed into, the `mcpc` command, and `~/.mcpc/app`:
+
+**Linux / macOS:**
+
+```bash
+curl -fsSL https://github.com/XiaoNetwork-Astral/mcpc/releases/latest/download/installer.sh | bash -s -- uninstall
+```
+
+**Windows (PowerShell):**
+
+```powershell
+& ([scriptblock]::Create((irm https://github.com/XiaoNetwork-Astral/mcpc/releases/latest/download/installer.ps1))) uninstall
+```
+
+Uninstalling does not depend on the checkout, so it also cleans up after a broken install. Naming a harness (`uninstall claude`, `uninstall other <SKILLS_DIR>`) removes only that copy of the skill. Configuration, caches, logs, and saved results stay in `~/.mcpc` (or `MCPC_HOME`); delete that directory as well to remove everything
 
 ## Usage
 
@@ -121,13 +131,17 @@ Supported transports are `stdio`, `http` (Streamable HTTP; a server that refuses
 ## Development
 
 ```bash
+git clone https://github.com/XiaoNetwork-Astral/mcpc.git
+cd mcpc
 npm ci                 # install dependencies, including the test fixtures' server SDK
 npm test               # unit and end-to-end tests (node:test, in-process fixture servers)
 npm run check          # syntax check of every module
 npm run format:check   # Prettier check; npm run format rewrites
 ```
 
-The end-to-end tests run the CLI against fixture servers in `test/helpers/` over stdio, sessions, Streamable HTTP, SSE, and WebSocket, all on `127.0.0.1`
+The end-to-end tests run the CLI against fixture servers in `test/helpers/` over stdio, sessions, Streamable HTTP, SSE, and WebSocket, all on `127.0.0.1`. The installer tests run `installer.sh` (and `installer.ps1` on Windows) against a local release repository and a stand-in for npm, inside a temporary home directory. Running `./installer.sh` or `.\installer.ps1` from a clone installs that clone instead of `~/.mcpc/app`
+
+Pushing a `v<major>.<minor>.<patch>` tag that matches `package.json` publishes a release with the two installer scripts
 
 ## License
 
