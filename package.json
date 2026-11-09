@@ -1,0 +1,35 @@
+{
+  "name": "mcpc",
+  "version": "0.1.0",
+  "description": "A host-neutral MCP client for agent harnesses without native MCP: persistent server sessions, progressive tool discovery, and server-to-client requests through one CLI and a skill.",
+  "private": true,
+  "license": "MIT",
+  "author": "BlueFunny & Claude",
+  "type": "module",
+  "bin": {
+    "mcpc": "bin/mcpc.mjs"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "skill",
+    "scripts"
+  ],
+  "engines": {
+    "node": ">=24.9"
+  },
+  "scripts": {
+    "check": "node scripts/check.mjs",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "node --test \"test/**/*.test.mjs\""
+  },
+  "dependencies": {
+    "@modelcontextprotocol/client": "2.4.0",
+    "ajv": "8.20.0"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/server": "2.4.0",
+    "prettier": "3.9.10"
+  }
+}

@@ -1,0 +1,16 @@
+# Markdown and documentation are intentionally left as-is.
+*.md
+
+# Bundled skills and local agent tooling.
+skill/
+.claude/
+.tmp/
+
+# Dependencies and generated lockfile.
+node_modules/
+package-lock.json
+
+# Shell/PowerShell scripts and license text.
+*.ps1
+*.sh
+LICENSE
